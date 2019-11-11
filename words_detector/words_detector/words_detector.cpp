@@ -1,6 +1,8 @@
 #include <opencv2/opencv.hpp>
 //#include <opencv2/highgui/highgui.hpp>
 
+std::vector<cv::Rect> detectLetters(cv::Mat img);
+
 int main(int argc, char** argv) {
 	cv::Mat img = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
 	if (img.empty()) return -1;
@@ -96,9 +98,38 @@ int main(int argc, char** argv) {
 		block_size,
 		offset
 	);
+	
+
+	// create 8bit color image. IMPORTANT: initialize image otherwise it will result in 32F
+	cv::Mat img_rgb(Iat.size(), CV_8UC3);
+
+	// convert grayscale to color image
+	cv::cvtColor(Iat, img_rgb, cv::COLOR_GRAY2RGB);
+
+	Iat.at<uchar>(0, 1) = 255;
+	Iat.at<uchar>(0, 2) = 255;
+	Iat.at<uchar>(0, 3) = 255;
+	Iat.at<uchar>(0, 4) = 255;
+	Iat.at<uchar>(0, 5) = 255;
+	Iat.at<uchar>(0, 6) = 255;
+	Iat.at<uchar>(0, 7) = 255;
+	Iat.at<uchar>(0, 8) = 255;
+	Iat.at<uchar>(0, 9) = 255;
+
+	std::vector<cv::Rect> letterBBoxes1 = detectLetters(img_rgb);
+	//	std::vector<cv::Rect> letterBBoxes2 = detectLetters(img2);
+		//Display
+	for (int i = 0; i < letterBBoxes1.size(); i++) {
+		cv::rectangle(img_rgb, letterBBoxes1[i], cv::Scalar(0, 255, 0), 3, 8, 0);
+		cv::circle(img_rgb, cv::Point(letterBBoxes1[i].x + letterBBoxes1[i].width * 0.5,
+			letterBBoxes1[i].y + letterBBoxes1[i].height * 0.5), 2, cv::Scalar(0, 0, 255), 5);
+	}
+
+
+	
 	//cv::imshow("Raw", Igray);
 	cv::imshow("Threshold", It);
-	cv::imshow("Adaptive Threshold", Iat);
+	cv::imshow("Adaptive Threshold", img_rgb);
 
 	cv::namedWindow("Example1", cv::WINDOW_AUTOSIZE);
 	cv::imshow("Example1", img);
@@ -140,3 +171,26 @@ int main(int argc, char** argv) {
 	return 0;
 }
 */
+
+std::vector<cv::Rect> detectLetters(cv::Mat img)
+{
+	std::vector<cv::Rect> boundRect;
+	cv::Mat img_gray, img_sobel, img_threshold, element;
+	cvtColor(img, img_gray, cv::COLOR_BGR2GRAY);
+	cv::Sobel(img_gray, img_sobel, CV_8U, 1, 0, 3, 1, 0, cv::BORDER_DEFAULT);
+	cv::threshold(img_sobel, img_threshold, 0, 255, cv::THRESH_OTSU + cv::THRESH_BINARY);
+	element = getStructuringElement(cv::MORPH_RECT, cv::Size(17, 3));
+	cv::morphologyEx(img_threshold, img_threshold, cv::MORPH_CLOSE, element); //Does the trick
+	std::vector< std::vector< cv::Point> > contours;
+	cv::findContours(img_threshold, contours, 0, 1);
+	std::vector<std::vector<cv::Point> > contours_poly(contours.size());
+	for (int i = 0; i < contours.size(); i++)
+		if (contours[i].size() > 100)
+		{
+			cv::approxPolyDP(cv::Mat(contours[i]), contours_poly[i], 3, true);
+			cv::Rect appRect(boundingRect(cv::Mat(contours_poly[i])));
+			if (appRect.width > appRect.height)
+				boundRect.push_back(appRect);
+		}
+	return boundRect;
+}
