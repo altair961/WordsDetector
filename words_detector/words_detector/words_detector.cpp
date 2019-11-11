@@ -1,8 +1,8 @@
-//#include <opencv2/opencv.hpp>
-#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 
 int main(int argc, char** argv) {
-	cv::Mat img = cv::imread(argv[1], -1);
+	cv::Mat img = cv::imread(argv[1], cv::IMREAD_GRAYSCALE);
 	if (img.empty()) return -1;
 
 	//img.at<uchar>(5, 5) = 0;
@@ -67,6 +67,38 @@ int main(int argc, char** argv) {
 			}
 			// use pointers instead of "img.at<uchar>(row, col) = 200;" pointers are faster and are ok for traversing even for video
 	}
+
+	// Command line.
+ //
+	double fixed_threshold = 15.0; //(double)atof(argv[1]);
+	int threshold_type = 1; // atoi(argv[2]) ? cv::THRESH_BINARY : cv::THRESH_BINARY_INV;
+	int adaptive_method = 1; // atoi(argv[3]) ? cv::ADAPTIVE_THRESH_MEAN_C
+		//: cv::ADAPTIVE_THRESH_GAUSSIAN_C;
+
+	int block_size = 71; // atoi(argv[4]);
+	double offset = 15.0; //  (double)atof(argv[5]);
+
+	cv::Mat It, Iat;
+	// Thresholds.
+	//
+	cv::threshold(
+		img,
+		It,
+		fixed_threshold,
+		255,
+		threshold_type);
+	cv::adaptiveThreshold(
+		img,
+		Iat,
+		255,
+		adaptive_method,
+		threshold_type,
+		block_size,
+		offset
+	);
+	//cv::imshow("Raw", Igray);
+	cv::imshow("Threshold", It);
+	cv::imshow("Adaptive Threshold", Iat);
 
 	cv::namedWindow("Example1", cv::WINDOW_AUTOSIZE);
 	cv::imshow("Example1", img);
