@@ -1,169 +1,138 @@
-#include <opencv2/imgproc.hpp>
-#include <opencv2/highgui.hpp>
-#include <opencv2/dnn.hpp>
+#include <opencv2/opencv.hpp>
+//#include <opencv2/highgui/highgui.hpp>
 
-using namespace cv;
-using namespace cv::dnn;
+int main(int argc, char** argv) {
+	cv::Mat img = cv::imread(argv[1]);
+	if (img.empty()) return -1;
 
-const char* keys =
-"{ help  h     | | Print help message. }"
-"{ input i     | | Path to input image or video file. Skip this argument to capture frames from a camera.}"
-"{ model m     | | Path to a binary .pb file contains trained network.}"
-"{ width       | 320 | Preprocess input image by resizing to a specific width. It should be multiple by 32. }"
-"{ height      | 320 | Preprocess input image by resizing to a specific height. It should be multiple by 32. }"
-"{ thr         | 0.5 | Confidence threshold. }"
-"{ nms         | 0.4 | Non-maximum suppression threshold. }";
+	cv::Mat imgGray;
+	cv::cvtColor(img, imgGray, cv::COLOR_BGR2GRAY);
 
-void decode(const Mat& scores, const Mat& geometry, float scoreThresh,
-	std::vector<RotatedRect>& detections, std::vector<float>& confidences);
+	cv::Mat imgBlurred;
+	cv::GaussianBlur(imgGray, imgBlurred, cv::Size(11, 11), 0);
 
-int main(int argc, char** argv)
-{
-	// Parse command line arguments.
-	CommandLineParser parser(argc, argv, keys);
-	parser.about("Use this script to run TensorFlow implementation (https://github.com/argman/EAST) of "
-		"EAST: An Efficient and Accurate Scene Text Detector (https://arxiv.org/abs/1704.03155v2)");
-	if (argc == 1 || parser.has("help"))
-	{
-		parser.printMessage();
-		return 0;
-	}
+	cv::Mat imgBinary;
+	int block_size = 71; // atoi(argv[4]);
+	double offset = 15.0; //  (double)atof(argv[5]);
+	double fixed_threshold = 15.0; //(double)atof(argv[1]);
+	int threshold_type = 1; // atoi(argv[2]) ? cv::THRESH_BINARY : cv::THRESH_BINARY_INV;
+	int adaptive_method = 1; // atoi(argv[3]) ? cv::ADAPTIVE_THRESH_MEAN_C
 
-	float confThreshold = parser.get<float>("thr");
-	float nmsThreshold = parser.get<float>("nms");
-	//int inpWidth = parser.get<int>("width");
-	//int inpHeight = parser.get<int>("height");
+//	cv::adaptiveThreshold(imgBlurred, imgBinary, 255, cv::ADAPTIVE_THRESH_MEAN_C, cv::THRESH_OTSU, block_size, offset); //(imgBlurred, 200, 255, cv2.THRESH_BINARY)[1]
+	cv::adaptiveThreshold(
+		imgBlurred,
+		imgBinary,
+		255,
+		adaptive_method,
+		threshold_type,
+		block_size,
+		offset
+	);
 
-	int inpWidth = 2048;
-	int inpHeight = 1536;
+	cv::Mat imgEroded;
+	int erosion_type = 1;
+	int erosion_size = 1;
+	cv::Mat erosion_kernel = cv::getStructuringElement(erosion_type,
+		cv::Size(2 * erosion_size + 1, 2 * erosion_size + 1),
+		cv::Point(erosion_size, erosion_size));
+
+	cv::erode(imgBinary, imgEroded, erosion_kernel, cv::Point(-1,-1), 1, 0);
+
+	cv::Mat imgDilated;
+	cv::dilate(imgEroded, imgDilated, erosion_kernel, cv::Point(-1,-1), 3); //4
+
+		//thresh = cv2.dilate(thresh, None, iterations = 4)
+																														//	cv::threshold(
+	//		imgGray,
+	//		It,
+	//		fixed_threshold,
+	//		255,
+	//		threshold_type);
+	//cv::adaptiveThreshold(
+	//	imgGray,
+	//	Iat,
+	//	255,
+	//	adaptive_method,
+	//	threshold_type,
+	//	block_size,
+	//	offset
+	//);
 
 
-	String model = parser.get<String>("model");
+	int rows = img.rows;
+	int cols = img.cols;
 
-	if (!parser.check())
-	{
-		parser.printErrors();
-		return 1;
-	}
+	cv::Size s = img.size();
+	rows = s.height;
+	cols = s.width;
 
-	model = "C:\\frozen_east_text_detection.pb";
-	CV_Assert(!model.empty());
+	//int dims = img.dims;
+	//img.size();
 
-	// Load network.
-	Net net = readNet(model);//name of file
+	//for (auto i : img) {
 
-	// Open a video file or an image file or a camera stream.
-	//VideoCapture cap;
-	//if (parser.has("input"))
-	//	cap.open(parser.get<String>("input"));
-	//else
-	//	cap.open(0);
-	//VideoCapture cap;
-	//bool  b = cap.open("c:\\input.jpg");
-	VideoCapture cap("C:\\%1d.jpg");
-	static const std::string kWinName = "EAST: An Efficient and Accurate Scene Text Detector";
-	namedWindow(kWinName, WINDOW_NORMAL);
+	//}
 
-	std::vector<Mat> outs;
-	std::vector<String> outNames(2);
-	outNames[0] = "feature_fusion/Conv_7/Sigmoid";
-	outNames[1] = "feature_fusion/concat_3";
+	//for (auto i{ 0 }; i < 2000; ++i)
+	//{
 
-	Mat frame, blob;
-	while (waitKey(1) < 0)
-	{
-		cap >> frame;
-		if (frame.empty())
-		{
-			waitKey();
-			break;
+	//	img.at<uchar>(8, i) = 254;
+	//	img.at<uchar>(9, i) = 254;
+	//	img.at<uchar>(10, i) = 254;
+
+	//	//for (auto j{ 0 }; j < height; ++j)
+	//	//{
+	//		//img.at<uchar>(j, i) = 0;
+	//	//}
+	//}
+
+		//img.at<uchar>(5, 987) = 0;
+		//img.at<uchar>(5, 988) = 0;
+		//img.at<uchar>(5, 989) = 0;
+		//img.at<uchar>(5, 990) = 0;
+		//img.at<uchar>(5, 991) = 0;
+		//img.at<uchar>(5, 992) = 0;
+
+
+
+
+	for (int row = 0; row < img.rows; ++row) {
+		uchar* p = img.ptr(row);
+		//	for (int col = 0; col < img.cols; ++col) {
+	//			*p++  //points to each pixel value in turn assuming a CV_8UC1 greyscale image 
+			//}
+
+			//or
+		for (int col = 0; col < img.cols * 3; ++col) { // here we multiply by 3 - beacuse 
+			// the amount of elements horizontaly is 3 times bigger than resolution 
+			// since each pixel represented by red green and blue pixel,
+			// when we deal with gray images we do not multiply 
+			*p++;  //points to each pixel B,G,R value in turn assuming a CV_8UC3 color image 
+			//img.at<uchar>(row, col) = 200;
+
 		}
-
-		blobFromImage(frame, blob, 1.0, Size(inpWidth, inpHeight), Scalar(123.68, 116.78, 103.94), true, false);
-		net.setInput(blob);
-		net.forward(outs, outNames);
-
-		Mat scores = outs[0];
-		Mat geometry = outs[1];
-
-		// Decode predicted bounding boxes.
-		std::vector<RotatedRect> boxes;
-		std::vector<float> confidences;
-		decode(scores, geometry, confThreshold, boxes, confidences);
-
-		// Apply non-maximum suppression procedure.
-		std::vector<int> indices;
-		NMSBoxes(boxes, confidences, confThreshold, nmsThreshold, indices);
-
-		// Render detections.
-		Point2f ratio((float)frame.cols / inpWidth, (float)frame.rows / inpHeight);
-		for (size_t i = 0; i < indices.size(); ++i)
-		{
-			RotatedRect& box = boxes[indices[i]];
-
-			Point2f vertices[4];
-			box.points(vertices);
-			for (int j = 0; j < 4; ++j)
-			{
-				vertices[j].x *= ratio.x;
-				vertices[j].y *= ratio.y;
-			}
-			for (int j = 0; j < 4; ++j)
-				line(frame, vertices[j], vertices[(j + 1) % 4], Scalar(0, 255, 0), 1);
-		}
-
-		// Put efficiency information.
-		std::vector<double> layersTimes;
-		double freq = getTickFrequency() / 1000;
-		double t = net.getPerfProfile(layersTimes) / freq;
-		std::string label = format("Inference time: %.2f ms", t);
-		putText(frame, label, Point(0, 15), FONT_HERSHEY_SIMPLEX, 0.5, Scalar(0, 255, 0));
-
-		imshow(kWinName, frame);
+		// use pointers instead of "img.at<uchar>(row, col) = 200;" pointers are faster and are ok for traversing even for video
 	}
+
+	// Command line.
+ //
+	//double fixed_threshold = 15.0; //(double)atof(argv[1]);
+	//int threshold_type = 1; // atoi(argv[2]) ? cv::THRESH_BINARY : cv::THRESH_BINARY_INV;
+	//int adaptive_method = 1; // atoi(argv[3]) ? cv::ADAPTIVE_THRESH_MEAN_C
+		//: cv::ADAPTIVE_THRESH_GAUSSIAN_C;
+
+	//int block_size = 71; // atoi(argv[4]);
+	//double offset = 15.0; //  (double)atof(argv[5]);
+
+	cv::namedWindow("imgBinary", cv::WINDOW_AUTOSIZE);
+	cv::imshow("imgBinary", imgBinary);
+	
+	cv::namedWindow("imgEroded", cv::WINDOW_AUTOSIZE);
+	cv::imshow("imgEroded", imgEroded);
+	
+	cv::namedWindow("imgDilated", cv::WINDOW_AUTOSIZE);
+	cv::imshow("imgDilated", imgDilated);
+	cv::waitKey(0);
+	cv::destroyWindow("imgDilated");
 	return 0;
-}
-
-void decode(const Mat& scores, const Mat& geometry, float scoreThresh,
-	std::vector<RotatedRect>& detections, std::vector<float>& confidences)
-{
-	detections.clear();
-	CV_Assert(scores.dims == 4); CV_Assert(geometry.dims == 4); CV_Assert(scores.size[0] == 1);
-	CV_Assert(geometry.size[0] == 1); CV_Assert(scores.size[1] == 1); CV_Assert(geometry.size[1] == 5);
-	CV_Assert(scores.size[2] == geometry.size[2]); CV_Assert(scores.size[3] == geometry.size[3]);
-
-	const int height = scores.size[2];
-	const int width = scores.size[3];
-	for (int y = 0; y < height; ++y)
-	{
-		const float* scoresData = scores.ptr<float>(0, 0, y);
-		const float* x0_data = geometry.ptr<float>(0, 0, y);
-		const float* x1_data = geometry.ptr<float>(0, 1, y);
-		const float* x2_data = geometry.ptr<float>(0, 2, y);
-		const float* x3_data = geometry.ptr<float>(0, 3, y);
-		const float* anglesData = geometry.ptr<float>(0, 4, y);
-		for (int x = 0; x < width; ++x)
-		{
-			float score = scoresData[x];
-			if (score < scoreThresh)
-				continue;
-
-			// Decode a prediction.
-			// Multiple by 4 because feature maps are 4 time less than input image.
-			float offsetX = x * 4.0f, offsetY = y * 4.0f;
-			float angle = anglesData[x];
-			float cosA = std::cos(angle);
-			float sinA = std::sin(angle);
-			float h = x0_data[x] + x2_data[x];
-			float w = x1_data[x] + x3_data[x];
-
-			Point2f offset(offsetX + cosA * x1_data[x] + sinA * x2_data[x],
-				offsetY - sinA * x1_data[x] + cosA * x2_data[x]);
-			Point2f p1 = Point2f(-sinA * h, -cosA * h) + offset;
-			Point2f p3 = Point2f(-cosA * w, sinA * w) + offset;
-			RotatedRect r(0.5f * (p1 + p3), Size2f(w, h), -angle * 180.0f / (float)CV_PI);
-			detections.push_back(r);
-			confidences.push_back(score);
-		}
-	}
 }
